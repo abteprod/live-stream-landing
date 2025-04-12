@@ -9,4 +9,5 @@ frontend/dist/
 
 # Docker
 *.log
+*.zip
 
