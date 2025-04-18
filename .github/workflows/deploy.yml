@@ -23,20 +23,23 @@ jobs:
 
     - name: 🚀 Deploy via SSH
       run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "Deploying to PRODUCTION"
+        BRANCH="${GITHUB_REF##*/}"
+
+        if [[ "$BRANCH" == "main" ]]; then
+          echo "🚀 Deploying to PRODUCTION"
           ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} '
-            cd ~/live-stream-landing
+            cd ~/live-stream-landing || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing && cd ~/live-stream-landing
+            git checkout main
             git pull origin main
             sudo docker-compose down
             sudo docker system prune -a --volumes -f
             sudo docker-compose build --no-cache
             sudo docker-compose up -d
           '
-        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "Deploying to STAGING"
+        elif [[ "$BRANCH" == "staging" ]]; then
+          echo "🧪 Deploying to STAGING"
           ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} '
-            cd ~/live-stream-landing-staging || git clone git@github.com:abteprod/live-stream-landing.git live-stream-landing-staging && cd live-stream-landing-staging
+            cd ~/live-stream-landing-staging || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing-staging && cd ~/live-stream-landing-staging
             git checkout staging
             git pull origin staging
             sudo docker-compose down
