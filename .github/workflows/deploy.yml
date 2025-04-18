@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy via SSH
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "🚀 Deploying to PRODUCTION"
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+            cd ~/live-stream-landing
+            git pull origin main
+            sudo docker compose down
+            sudo docker system prune -a --volumes -f
+            sudo docker compose build --no-cache
+            sudo docker compose up -d
+          EOF
+        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          echo "🧪 Deploying to STAGING"
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+            cd ~/live-stream-landing-staging || git clone https://github.com/abteprod/live-stream-landing.git live-stream-landing-staging && cd live-stream-landing-staging
+            git checkout staging
+            git pull origin staging
+            sudo docker compose down
+            sudo docker system prune -a --volumes -f
+            sudo docker compose build --no-cache
+            sudo docker compose up -d
+          EOF
+        fi
