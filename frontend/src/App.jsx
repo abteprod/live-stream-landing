@@ -11,7 +11,7 @@ function App() {
     // Fetch the current iframe from the backend
     const fetchIframe = async () => {
       try {
-        const res = await axios.get('http://localhost:4000/iframe');
+        const res = await axios.get('/iframe');
         setIframeHtml(res.data.html); // Save the iframe HTML to state
       } catch (err) {
         console.error("Error loading iframe:", err);
@@ -22,7 +22,7 @@ function App() {
     fetchIframe();
 
     // Setup WebSocket connection to receive live iframe updates
-    const socket = io('http://localhost:4000');
+    const socket = io();
 
     // When the backend notifies of a new iframe, re-fetch it
     socket.on('iframeUpdated', () => {
