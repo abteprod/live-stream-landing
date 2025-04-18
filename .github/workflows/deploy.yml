@@ -32,17 +32,13 @@ jobs:
             git checkout main
             git pull origin main
 
-            echo "🧹 Cleaning up existing containers"
-            docker rm -f backend || true
-            docker rm -f frontend || true
-
-            echo "🧼 Stopping and pruning"
-            sudo docker-compose down
+            echo "🧼 Stopping and cleaning"
+            sudo docker-compose --project-name live-prod down
             sudo docker system prune -a --volumes -f
 
-            echo "🔨 Building and starting containers"
-            sudo docker-compose build --no-cache
-            sudo docker-compose up -d
+            echo "🔨 Rebuilding and starting"
+            sudo docker-compose --project-name live-prod build --no-cache
+            sudo docker-compose --project-name live-prod up -d
           '
 
         elif [[ "$BRANCH" == "staging" ]]; then
@@ -52,16 +48,12 @@ jobs:
             git checkout staging
             git pull origin staging
 
-            echo "🧹 Cleaning up existing containers"
-            docker rm -f backend || true
-            docker rm -f frontend || true
-
-            echo "🧼 Stopping and pruning"
-            sudo docker-compose down
+            echo "🧼 Stopping and cleaning"
+            sudo docker-compose --project-name live-staging down
             sudo docker system prune -a --volumes -f
 
-            echo "🔨 Building and starting containers"
-            sudo docker-compose build --no-cache
-            sudo docker-compose up -d
+            echo "🔨 Rebuilding and starting"
+            sudo docker-compose --project-name live-staging build --no-cache
+            sudo docker-compose --project-name live-staging up -d
           '
         fi
