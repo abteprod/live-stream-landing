@@ -1,0 +1,19 @@
+
+#!/bin/bash
+
+echo "🚧 Stopping current containers..."
+sudo docker compose down
+
+echo "📥 Pulling latest code from GitHub..."
+git pull origin main
+
+echo "🧼 Cleaning up unused Docker data..."
+sudo docker system prune -a --volumes -f
+
+echo "🔨 Rebuilding containers from scratch..."
+sudo docker compose build --no-cache
+
+echo "🚀 Starting containers..."
+sudo docker compose up -d
+
+echo "✅ Done. App should be running!"
