@@ -43,22 +43,4 @@ jobs:
 
           echo "✅ Validating .env"
           if [ ! -f ".env" ]; then
-            echo "❌ .env not found. Aborting."
-            exit 1
-          fi
-
-          echo "🌐 Generating nginx.conf from template"
-          export DOMAIN=$DOMAIN
-          export NGINX_PORT_HTTP=80
-          export NGINX_PORT_HTTPS=443
-          export PROJECT_NAME=$PROJECT_NAME
-          envsubst < nginx.template.conf > nginx.conf
-
-          echo "🧼 Stopping and cleaning"
-          sudo docker-compose --project-name $PROJECT_NAME down
-          sudo docker system prune -a --volumes -f
-
-          echo "🔨 Rebuilding and starting"
-          sudo docker-compose --project-name $PROJECT_NAME build --no-cache
-          sudo docker-compose --project-name $PROJECT_NAME up -d
-        EOF
+            echo "❌ .
