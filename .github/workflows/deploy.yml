@@ -7,11 +7,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
 
-    - name: 🔐 Set up SSH
+    - name: 🔐 Setup SSH
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
@@ -19,6 +18,9 @@ jobs:
         ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
     - name: 🚀 Deploy
+      env:
+        HOST: ${{ secrets.HOST }}
+        USER: ${{ secrets.USER }}
       run: |
         BRANCH="${GITHUB_REF##*/}"
         if [[ "$BRANCH" == "main" ]]; then
@@ -29,29 +31,32 @@ jobs:
           DOMAIN="staging.abte.com.ar"
         fi
 
-        ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} <<'EOSSH'
+        ssh -i ~/.ssh/id_ed25519 $USER@$HOST <<EOF
           set -e
-          echo "👉  Branch: $BRANCH  Project: $PROJECT"
+          echo "👉  Branch: $BRANCH   Project: $PROJECT"
 
           cd ~/$PROJECT || git clone git@github.com:abteprod/live-stream-landing.git ~/$PROJECT
           cd ~/$PROJECT
           git fetch origin $BRANCH
           git reset --hard origin/$BRANCH
 
-          [[ -f .env ]] || { echo "❌ .env missing" ; exit 1 ; }
+          [[ -f .env ]] || { echo "❌ .env missing"; exit 1; }
+
+          # export vars del .env + override explícito
+          set -a
+          . .env
+          set +a
+          export DOMAIN=$DOMAIN NGINX_PORT_HTTP=80 NGINX_PORT_HTTPS=443
+          export DOLLAR=\$
 
           echo "🌐 Rendering nginx.conf"
-          export $(grep -E '^[A-Z_]+=.*' .env)            # export vars del .env
-          export DOMAIN=$DOMAIN NGINX_PORT_HTTP=80 NGINX_PORT_HTTPS=443
-          export DOLLAR=$
           envsubst < nginx.template.conf > nginx.conf
-          echo "---- nginx.conf preview ----"
-          head -n 20 nginx.conf
-          echo "----------------------------"
+          head -n 15 nginx.conf
 
-          echo "🧼 Docker prune & rebuild"
+          echo "🧼 Docker clean"
           sudo docker compose --project-name $PROJECT down -v
           sudo docker system prune -af --volumes
 
+          echo "🔨 Build & up"
           sudo docker compose --project-name $PROJECT up -d --build
-        EOSSH
+        EOF
