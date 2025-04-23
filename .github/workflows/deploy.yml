@@ -26,46 +26,39 @@ jobs:
         BRANCH="${GITHUB_REF##*/}"
 
         if [[ "$BRANCH" == "main" ]]; then
-          echo "🚀 Deploying to PRODUCTION"
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} '
-            cd ~/live-stream-landing || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing && cd ~/live-stream-landing
-            git checkout main
-            git pull origin main
-            echo "✅ Validating .env"
-            ./validate-env.sh
-            echo "🌐 Generating nginx.conf from template using .env"
-            export $(grep -vE '^\s*#' .env | xargs) && envsubst < nginx.template.conf > nginx.conf
-
-
-            echo "🧼 Stopping and cleaning"
-            sudo docker-compose --project-name live-prod down
-            sudo docker system prune -a --volumes -f
-
-            echo "🔨 Rebuilding and starting"
-            sudo docker-compose --project-name live-prod build --no-cache
-            sudo docker-compose --project-name live-prod up -d
-          '
-
-        elif [[ "$BRANCH" == "staging" ]]; then
-          echo "🧪 Deploying to STAGING"
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} '
-            cd ~/live-stream-landing-staging || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing-staging && cd ~/live-stream-landing-staging
-            git checkout staging
-            git pull origin staging
-
-            echo "✅ Validating .env"
-            ./validate-env.sh
-
-            echo "🌐 Generating nginx.conf from template using .env"
-            export $(grep -vE '^\s*#' .env | xargs) && envsubst < nginx.template.conf > nginx.conf
-
-
-            echo "🧼 Stopping and cleaning"
-            sudo docker-compose --project-name live-staging down
-            sudo docker system prune -a --volumes -f
-
-            echo "🔨 Rebuilding and starting"
-            sudo docker-compose --project-name live-staging build --no-cache
-            sudo docker-compose --project-name live-staging up -d
-          '
+          PROJECT_NAME="live-prod"
+          DOMAIN="stream.abte.com.ar"
+        else
+          PROJECT_NAME="live-staging"
+          DOMAIN="staging.abte.com.ar"
         fi
+
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} << EOF
+          set -e
+
+          cd ~/${PROJECT_NAME} || git clone git@github.com:abteprod/live-stream-landing.git ~/${PROJECT_NAME}
+          cd ~/${PROJECT_NAME}
+          git checkout $BRANCH
+          git pull origin $BRANCH
+
+          echo "✅ Validating .env"
+          if [ ! -f ".env" ]; then
+            echo "❌ .env not found. Aborting."
+            exit 1
+          fi
+
+          echo "🌐 Generating nginx.conf from template"
+          export DOMAIN=$DOMAIN
+          export NGINX_PORT_HTTP=80
+          export NGINX_PORT_HTTPS=443
+          export PROJECT_NAME=$PROJECT_NAME
+          envsubst < nginx.template.conf > nginx.conf
+
+          echo "🧼 Stopping and cleaning"
+          sudo docker-compose --project-name $PROJECT_NAME down
+          sudo docker system prune -a --volumes -f
+
+          echo "🔨 Rebuilding and starting"
+          sudo docker-compose --project-name $PROJECT_NAME build --no-cache
+          sudo docker-compose --project-name $PROJECT_NAME up -d
+        EOF
