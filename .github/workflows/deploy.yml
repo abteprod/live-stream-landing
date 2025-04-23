@@ -2,45 +2,56 @@ name: Deploy to Lightsail
 
 on:
   push:
-    branches:
-      - main
-      - staging
+    branches: [main, staging]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-    - name: 🔐 Setup SSH access
+    - name: 🔐 Set up SSH
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
         ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-    - name: 🚀 Deploy via SSH
+    - name: 🚀 Deploy
       run: |
         BRANCH="${GITHUB_REF##*/}"
-
         if [[ "$BRANCH" == "main" ]]; then
-          PROJECT_NAME="live-prod"
+          PROJECT="live-prod"
           DOMAIN="stream.abte.com.ar"
         else
-          PROJECT_NAME="live-staging"
+          PROJECT="live-staging"
           DOMAIN="staging.abte.com.ar"
         fi
 
-        ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} << EOF
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.USER }}@${{ secrets.HOST }} <<'EOSSH'
           set -e
+          echo "👉  Branch: $BRANCH  Project: $PROJECT"
 
-          cd ~/${PROJECT_NAME} || git clone git@github.com:abteprod/live-stream-landing.git ~/${PROJECT_NAME}
-          cd ~/${PROJECT_NAME}
-          git checkout $BRANCH
-          git pull origin $BRANCH
+          cd ~/$PROJECT || git clone git@github.com:abteprod/live-stream-landing.git ~/$PROJECT
+          cd ~/$PROJECT
+          git fetch origin $BRANCH
+          git reset --hard origin/$BRANCH
 
-          echo "✅ Validating .env"
-          if [ ! -f ".env" ]; then
-            echo "❌ .
+          [[ -f .env ]] || { echo "❌ .env missing" ; exit 1 ; }
+
+          echo "🌐 Rendering nginx.conf"
+          export $(grep -E '^[A-Z_]+=.*' .env)            # export vars del .env
+          export DOMAIN=$DOMAIN NGINX_PORT_HTTP=80 NGINX_PORT_HTTPS=443
+          export DOLLAR=$
+          envsubst < nginx.template.conf > nginx.conf
+          echo "---- nginx.conf preview ----"
+          head -n 20 nginx.conf
+          echo "----------------------------"
+
+          echo "🧼 Docker prune & rebuild"
+          sudo docker compose --project-name $PROJECT down -v
+          sudo docker system prune -af --volumes
+
+          sudo docker compose --project-name $PROJECT up -d --build
+        EOSSH
