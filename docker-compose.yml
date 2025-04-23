@@ -1,7 +1,5 @@
 version: "3.8"
 
-
-
 services:
   frontend:
     build:
@@ -9,7 +7,7 @@ services:
       dockerfile: Dockerfile.frontend
     restart: unless-stopped
     env_file:
-  - .env
+      - .env
 
   backend:
     build:
@@ -17,7 +15,7 @@ services:
       dockerfile: Dockerfile.backend
     restart: unless-stopped
     env_file:
-  - .env
+      - .env
 
   nginx:
     image: nginx:alpine
@@ -32,4 +30,4 @@ services:
       - backend
     restart: unless-stopped
     env_file:
-  - .env
+      - .env
