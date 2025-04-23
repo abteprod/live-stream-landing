@@ -1,0 +1,41 @@
+name: 📌 Tag and Backup Main Commits
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tag-and-backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🏷 Create timestamped tag
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
+          TAG="release-$TIMESTAMP"
+          echo "Creating tag: $TAG"
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git tag $TAG
+          git push origin $TAG
+
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
+      - name: 📦 Create code archive
+        run: |
+          mkdir -p backup
+          tar -czf backup/$TAG_NAME.tar.gz .
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
+
+      - name: ☁️ Upload backup artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.TAG_NAME }}
+          path: backup/${{ env.TAG_NAME }}.tar.gz

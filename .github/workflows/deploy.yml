@@ -31,6 +31,10 @@ jobs:
             cd ~/live-stream-landing || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing && cd ~/live-stream-landing
             git checkout main
             git pull origin main
+            echo "✅ Validating .env"
+            ./validate-env.sh
+            echo "🌐 Generating nginx.conf from template using .env"
+            export $(cat .env | xargs) && envsubst < nginx.template.conf > nginx.conf
 
             echo "🧼 Stopping and cleaning"
             sudo docker-compose --project-name live-prod down
@@ -47,6 +51,12 @@ jobs:
             cd ~/live-stream-landing-staging || git clone git@github.com:abteprod/live-stream-landing.git ~/live-stream-landing-staging && cd ~/live-stream-landing-staging
             git checkout staging
             git pull origin staging
+
+            echo "✅ Validating .env"
+            ./validate-env.sh
+
+            echo "🌐 Generating nginx.conf from template using .env"
+            export $(cat .env | xargs) && envsubst < nginx.template.conf > nginx.conf
 
             echo "🧼 Stopping and cleaning"
             sudo docker-compose --project-name live-staging down
